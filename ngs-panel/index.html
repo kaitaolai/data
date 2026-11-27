@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Germline NGS panel validation | Kaitao Lai</title>
+<meta name="description" content="Case study: a diagnostic-style validation of a germline sequencing pipeline, with acceptance criteria fixed before results, a failed first version, written change control, and 316 of 316 panel SNVs found.">
+<link rel="stylesheet" href="../assets/css/style.css?v=5">
+</head>
+<body class="case">
+
+<div class="spotlight" aria-hidden="true"></div>
+
+<header class="nav" id="nav">
+  <a class="brand" href="../"><span class="dot"></span>Kaitao Lai</a>
+  <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+  <nav id="menu">
+    <a class="active" href="../#work">Work</a>
+    <a href="../#experience">Experience</a>
+    <a href="../#skills">Skills</a>
+    <a href="../#research">Research</a>
+    <a href="../#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+
+  <section class="case-hero">
+    <a class="back load" style="--i:0" href="../#work"><span>←</span> All work</a>
+    <p class="eyebrow load" style="--i:1">Case study · open source</p>
+    <h1 class="load" style="--i:2">Germline NGS panel validation</h1>
+    <p class="lede load" style="--i:3">Before a clinical laboratory reports variants from a sequencing pipeline, it has to show that the pipeline finds what is there and reports nothing that is not. I carried out that validation in the open, end to end, and wrote it up the way a diagnostic laboratory would.</p>
+    <p class="links load" style="--i:4"><a class="primary" href="https://github.com/taowis/ngs-panel-validation">Code and reports on GitHub</a><a href="https://kaitaolai.github.io/projects/6_ngs_panel/">Project page</a></p>
+
+    <dl class="meta load" style="--i:5">
+      <div><dt>My role</dt><dd>Sole author: pipeline, validation plan, reports and risk register</dd></div>
+      <div><dt>Pipeline</dt><dd>Nextflow DSL2, BWA-MEM, GATK HaplotypeCaller with hard filters, RTG vcfeval, in Docker or Apptainer</dd></div>
+      <div><dt>Truth data</dt><dd>Five Genome in a Bottle reference genomes (HG001 to HG005), 31 genes from PanelApp Australia</dd></div>
+      <div><dt>Standards</dt><dd>Written with reference to AMP/CAP, NPAAC and ISO 15189:2022. This is not an accredited laboratory, and the repository says so.</dd></div>
+    </dl>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">01</span>The bar, set first</h2>
+    <p>The pipeline looks for inherited variants in 31 genes linked to breast, ovarian and colorectal cancer, including BRCA1, BRCA2, PALB2, the mismatch repair genes, APC and TP53. Genome in a Bottle samples are the test: their true variants are known from many sequencing technologies, so every call can be scored as right, missed or false.</p>
+    <p>The acceptance criteria were written into a config file before the pipeline existed, and the git history shows it: the criteria were committed before the first pipeline code, and later edits changed only comments.</p>
+    <ul class="ticks">
+      <li>SNV sensitivity and precision at least 0.99; indel sensitivity and precision at least 0.95; genotype concordance at least 0.99.</li>
+      <li>At least 98% of panel bases covered 20 times or more, after duplicates and low-quality reads are removed.</li>
+      <li>Two runs of the same data must give identical records, and two libraries from the same person must agree on 99% of genotypes.</li>
+      <li>Under change control, no metric may drop by more than 0.005, and every call that changes in the panel must be reviewed.</li>
+    </ul>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">02</span>The pipeline</h2>
+    <figure class="diagram">
+      <div class="diagram-scroll">
+      <svg viewBox="0 0 1000 250" role="img" aria-label="Reads are aligned with BWA-MEM, duplicates marked, variants called with GATK HaplotypeCaller and hard-filtered, then scored with RTG vcfeval against the Genome in a Bottle truth set inside the panel, alongside coverage and repeat checks, giving a report against the fixed criteria.">
+        <g class="edge">
+          <path d="M140 95 L170 95"/><path d="M290 95 L320 95"/><path d="M450 95 L480 95"/><path d="M620 95 L650 95"/><path d="M790 95 L820 95"/>
+          <path d="M720 125 L720 170"/>
+        </g>
+        <g class="box">
+          <rect x="20" y="70" width="120" height="50" rx="10"/><text x="80" y="89" class="b">Reads</text><text x="80" y="107">FASTQ</text>
+        </g>
+        <g class="box agent">
+          <rect x="170" y="70" width="120" height="50" rx="10"/><text x="230" y="89" class="b">BWA-MEM</text><text x="230" y="107">mark duplicates</text>
+          <rect x="320" y="70" width="130" height="50" rx="10"/><text x="385" y="89" class="b">HaplotypeCaller</text><text x="385" y="107">GATK 4.6</text>
+          <rect x="480" y="70" width="140" height="50" rx="10"/><text x="550" y="89" class="b">Hard filters</text><text x="550" y="107">published thresholds</text>
+        </g>
+        <g class="box key">
+          <rect x="650" y="70" width="140" height="50" rx="10"/><text x="720" y="89" class="b">vcfeval</text><text x="720" y="107">against GIAB truth</text>
+        </g>
+        <g class="box">
+          <rect x="820" y="70" width="160" height="50" rx="10"/><text x="900" y="89" class="b">Report</text><text x="900" y="107">against the criteria</text>
+          <rect x="640" y="170" width="160" height="50" rx="10"/><text x="720" y="189" class="b">Coverage, repeats</text><text x="720" y="207">mosdepth, md5</text>
+        </g>
+        <text class="note" x="300" y="200">CI runs the test data in Docker and Apptainer;</text>
+        <text class="note" x="300" y="218">results must match the Conda run</text>
+      </svg>
+      </div>
+      <figcaption>Drawn for this page from the workflow code.</figcaption>
+    </figure>
+    <p>Every tool version is pinned, and the container is built from an explicit lock file. The filters are GATK's published hard-filter thresholds, not tuned to the test data.</p>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">03</span>The first version failed</h2>
+    <p>On the first reference sample the pipeline missed 3 of 53 panel SNVs in one library and 2 of 53 in the other. All three misses in the first library had been called correctly and then removed by a single strand-bias rule in the standard filter. Across the exome, that one rule alone removed 2,796 correct SNVs.</p>
+    <ul class="ticks">
+      <li>The fix went through change control. A written plan named the candidate filters and the rule for choosing between them before any candidate was run.</li>
+      <li>Candidates were compared on odd-numbered chromosomes, outside the panel. The chosen filter was then tested on even-numbered chromosomes, so the test data played no part in the choice.</li>
+      <li>On the test half, SNV sensitivity rose from 0.847 to 0.906 in one library and from 0.852 to 0.912 in the other, while precision fell by no more than 0.0017.</li>
+      <li>The report accepted the change and said plainly that this was not a claim that the new version met all the criteria.</li>
+    </ul>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">04</span>Checked on data it had never seen</h2>
+    <p>Four more reference genomes, sequenced by a second laboratory with a different capture kit, were run from alignment. Across all five genomes no panel SNV was missed: 316 of 316. The results are reported with their weak points:</p>
+    <ul class="ticks">
+      <li>The 316 are only 116 distinct variants, so the pooled confidence interval is optimistic.</li>
+      <li>Panel precision was 316 of 320, 0.988, just below the 0.99 bar. All four false calls were the same pair of positions in PMS2, in two genomes.</li>
+      <li>There were too few indels in the panel (5 distinct) to judge indel accuracy, and the report says so rather than quoting a number.</li>
+    </ul>
+    <figure class="diagram">
+      <div class="diagram-scroll">
+      <svg viewBox="0 0 1000 300" role="img" aria-label="Fraction of panel bases covered 20 times or more when one genome is downsampled: 20x 0.677, 30x 0.821, 50x 0.921, 75x 0.956, full depth 140x 0.976; the target is 0.98.">
+        <g class="axis">
+          <line x1="300" y1="30" x2="300" y2="250"/>
+          <line x1="300" y1="250" x2="940" y2="250"/>
+        </g>
+        <g class="ticksx">
+          <text x="300" y="272">0</text><text x="460" y="272">0.25</text><text x="620" y="272">0.5</text><text x="780" y="272">0.75</text><text x="940" y="272">1</text>
+        </g>
+        <line class="chance" x1="927.2" y1="30" x2="927.2" y2="250"/>
+        <text class="note" x="921" y="22" style="text-anchor:end">target 0.98</text>
+        <g class="bars">
+          <text class="lab" x="285" y="57">20x</text>
+          <rect class="bar" x="300" y="45" width="0" data-w="433.3" height="24" rx="4"/>
+          <text class="val" x="725.3" y="57">0.677</text>
+
+          <text class="lab" x="285" y="97">30x</text>
+          <rect class="bar" x="300" y="85" width="0" data-w="525.4" height="24" rx="4"/>
+          <text class="val" x="817.4" y="97">0.821</text>
+
+          <text class="lab" x="285" y="137">50x</text>
+          <rect class="bar" x="300" y="125" width="0" data-w="589.4" height="24" rx="4"/>
+          <text class="val" x="881.4" y="137">0.921</text>
+
+          <text class="lab" x="285" y="177">75x</text>
+          <rect class="bar" x="300" y="165" width="0" data-w="611.8" height="24" rx="4"/>
+          <text class="val" x="903.8" y="177">0.956</text>
+
+          <text class="lab" x="285" y="217">140x (full depth)</text>
+          <rect class="bar model" x="300" y="205" width="0" data-w="624.6" height="24" rx="4"/>
+          <text class="val" x="916.6" y="217">0.976</text>
+        </g>
+      </svg>
+      </div>
+      <figcaption>Share of panel bases covered 20 times or more as one genome (HG002) is downsampled. Every panel SNV was still found from 30x, but even full depth falls just short of the coverage target. Data from the repository's report 03.</figcaption>
+    </figure>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">05</span>Running it like a laboratory</h2>
+    <div class="decisions">
+      <div class="decision reveal">
+        <h3>A risk register</h3>
+        <p>18 failure modes, each scored for severity, likelihood and how easily it would be caught, with actions recorded. The two highest are variant types outside the validated scope and variant descriptions (HGVS) that were never validated.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>A supplier update, checked from outputs</h3>
+        <p>A DeepVariant upgrade was assessed from the exported VCFs alone, as a laboratory would with software it cannot inspect. 595 of 101,297 records changed only in their filter label, a change the release notes did not mention, and no call changed.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Repeatable to the byte</h3>
+        <p>The same data run twice gave 102,862 records each time, none different, with the same checksum. Each DeepVariant version was also run twice on different machines with no difference.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Honest about the gaps</h3>
+        <p>The review that a second person would do in a laboratory was done by me alone, and the repository maps the ISO 15189 and NPAAC requirements to what was and was not possible outside an accredited laboratory.</p>
+      </div>
+    </div>
+    <div class="stats case-stats">
+      <div class="stat"><span class="num" data-to="316">0</span><span class="lbl">of 316 panel SNVs found</span></div>
+      <div class="stat"><span class="num" data-to="5">0</span><span class="lbl">reference genomes, two laboratories</span></div>
+      <div class="stat"><span class="num" data-to="31">0</span><span class="lbl">genes in the panel</span></div>
+      <div class="stat"><span class="num" data-to="18">0</span><span class="lbl">failure modes in the risk register</span></div>
+    </div>
+  </section>
+
+  <nav class="case-next reveal">
+    <a href="../amrscan/"><span>←</span> AMRScan 2</a>
+    <a href="../stockclaw/">StockClaw data platform <span>→</span></a>
+  </nav>
+
+</main>
+
+<footer class="foot">
+  <p>Kaitao Lai · Sydney · <a href="https://kaitaolai.github.io/">Academic site</a> · <a href="https://kaitaolai.github.io/ai/">AI engineering portfolio</a> · <a href="https://github.com/taowis">GitHub</a></p>
+</footer>
+
+<script src="../assets/js/main.js?v=5"></script>
+</body>
+</html>

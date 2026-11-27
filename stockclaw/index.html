@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>StockClaw AI: the data platform | Kaitao Lai</title>
+<meta name="description" content="Case study: the data platform behind StockClaw AI. Feeds crawled once and fanned out per user, idempotent loads, row-level security in Postgres, and vectors moved into pgvector.">
+<link rel="stylesheet" href="../assets/css/style.css?v=5">
+</head>
+<body class="case">
+
+<div class="spotlight" aria-hidden="true"></div>
+
+<header class="nav" id="nav">
+  <a class="brand" href="../"><span class="dot"></span>Kaitao Lai</a>
+  <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+  <nav id="menu">
+    <a class="active" href="../#work">Work</a>
+    <a href="../#experience">Experience</a>
+    <a href="../#skills">Skills</a>
+    <a href="../#research">Research</a>
+    <a href="../#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+
+  <section class="case-hero">
+    <a class="back load" style="--i:0" href="../#work"><span>←</span> All work</a>
+    <p class="eyebrow load" style="--i:1">Case study · 2026 – present</p>
+    <h1 class="load" style="--i:2">StockClaw AI: the data platform</h1>
+    <p class="lede load" style="--i:3">StockClaw turns filings, central-bank releases and news into ranked signals for each user's watchlist. This page is about the data side: bringing dozens of feeds in once, processing them for each user, and keeping each user's data to themselves.</p>
+    <p class="links load" style="--i:4"><a class="primary" href="https://stockclaw.co/">stockclaw.co</a><a href="https://play.google.com/store/apps/details?id=co.stockclaw.app">Google Play</a><a href="https://docs.stockclaw.co/">User guide</a><a href="https://kaitaolai.github.io/ai/stockclaw/">The AI side of this project</a></p>
+
+    <dl class="meta load" style="--i:5">
+      <div><dt>My role</dt><dd>Project lead of a team of four: designed the architecture and wrote most of the code</dd></div>
+      <div><dt>Repository</dt><dd>277 merged pull requests and 99 Architecture Decision Records (private repository)</dd></div>
+      <div><dt>Stack</dt><dd>Python, FastAPI, Celery, Redis, Supabase Postgres, Alembic, pgvector, DuckDB</dd></div>
+      <div><dt>Runs on</dt><dd>Railway (web, worker, scheduler, Redis), Vercel and Supabase</dd></div>
+    </dl>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">01</span>The problem</h2>
+    <p>Each user follows their own watchlist of tickers. The obvious design crawls every source for every user, so the number of external calls grows with users times tickers, and the sources that matter most, such as the SEC, publish strict limits on how fast you may call them.</p>
+    <p>The sources are also untidy. The same story arrives from several feeds, an SEC filing appears in two places, a feed host can stop answering in the middle of a request, and a commercial news feed may not allow the use you have in mind.</p>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">02</span>How the data moves</h2>
+    <figure class="diagram">
+      <div class="diagram-scroll">
+      <svg viewBox="0 0 1000 360" role="img" aria-label="Every 20 minutes the scheduler crawls all sources once for the union of watchlist tickers, plus an SEC real-time store in Redis. Items get a content-hash ID and are de-duplicated, then fanned out: one task per user writes signals into Postgres behind row-level security, and one market-wide task writes market signals with a unique ID. The API reads through row-level security.">
+        <g class="grp"><text x="24" y="24" style="text-anchor:start">Ingest once</text><text x="470" y="24" style="text-anchor:start">Fan out</text><text x="830" y="24" style="text-anchor:start">Store and serve</text></g>
+        <g class="edge">
+          <path d="M150 70 L190 150"/><path d="M150 130 L190 160"/><path d="M150 190 L190 170"/><path d="M150 250 L190 180"/>
+          <path d="M120 318 L240 318 L240 195"/>
+          <path d="M310 165 L340 165"/>
+          <path d="M460 165 L480 120"/><path d="M460 165 L480 215"/>
+          <path d="M640 110 L680 110"/><path d="M640 220 L680 220"/>
+          <path d="M800 110 L840 160"/><path d="M800 220 L840 175"/>
+        </g>
+        <g class="box">
+          <rect x="20" y="50" width="130" height="40" rx="9"/><text x="85" y="71">SEC filings</text>
+          <rect x="20" y="110" width="130" height="40" rx="9"/><text x="85" y="131">banks, agencies</text>
+          <rect x="20" y="170" width="130" height="40" rx="9"/><text x="85" y="191">official data APIs</text>
+          <rect x="20" y="230" width="130" height="40" rx="9"/><text x="85" y="251">news and wires</text>
+          <rect x="20" y="298" width="100" height="40" rx="9"/><text x="70" y="313" class="b">Redis</text><text x="70" y="329">SEC, 26 h</text>
+        </g>
+        <g class="box key">
+          <rect x="190" y="135" width="120" height="60" rx="10"/><text x="250" y="157" class="b">Crawl</text><text x="250" y="177">every 20 min</text>
+        </g>
+        <g class="box agent">
+          <rect x="340" y="135" width="120" height="60" rx="10"/><text x="400" y="157" class="b">Raw items</text><text x="400" y="177">hash ID, de-dup</text>
+          <rect x="480" y="80" width="160" height="60" rx="10"/><text x="560" y="102" class="b">Per user</text><text x="560" y="122">filter, skip seen IDs</text>
+          <rect x="480" y="190" width="160" height="60" rx="10"/><text x="560" y="212" class="b">Market-wide</text><text x="560" y="232">once for everyone</text>
+        </g>
+        <g class="box key">
+          <rect x="680" y="80" width="120" height="60" rx="10"/><text x="740" y="102" class="b">signals</text><text x="740" y="122">RLS per user</text>
+          <rect x="680" y="190" width="120" height="60" rx="10"/><text x="740" y="212" class="b">market_signals</text><text x="740" y="232">unique raw_id</text>
+        </g>
+        <g class="box">
+          <rect x="840" y="135" width="140" height="60" rx="10"/><text x="910" y="157" class="b">API, push</text><text x="910" y="177">reads through RLS</text>
+        </g>
+        <text class="note" x="640" y="300">raw items travel in task messages; only derived signals are stored</text>
+      </svg>
+      </div>
+      <figcaption>Drawn for this page from the scheduler, task and migration code.</figcaption>
+    </figure>
+    <p>The scheduler runs the crawl every 20 minutes. It builds the union of every user's watchlist tickers from Postgres, runs each crawler once, and turns every item into a validated record whose ID is a hash of its URL and title, or the accession number for an SEC filing. A separate poller checks the SEC's latest-filings feed every 5 minutes on weekdays and keeps what it finds in Redis for 26 hours, so the main crawl can pick it up.</p>
+    <p>The sources are SEC filings and insider forms, the Federal Reserve, ECB, Bank of Japan and Bank of England, US federal agencies, official data APIs such as BLS, Treasury, World Bank and Eurostat, press wires, and 33 news and content sources.</p>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">03</span>Decisions and trade-offs</h2>
+    <div class="decisions">
+      <div class="decision reveal">
+        <h3>Crawl once, fan out per user</h3>
+        <p>Sources are crawled once for the union of all tickers, then one task per user does the filtering and synthesis. External calls grow with the number of distinct tickers, not with users times tickers.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Loads that can be repeated safely</h3>
+        <p>Duplicates are dropped by ID within a cycle, each user only receives IDs they do not already have, and market-wide rows have a unique constraint with insert-or-ignore. A retried task cannot write the same signal twice.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Privacy enforced by the database</h3>
+        <p>Every user table has row-level security. Each request sets the current user and switches to a restricted role before it reads, and system tables have security switched on with no policy at all, so they fail closed.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Polite to the sources</h3>
+        <p>SEC calls are capped at 5 per second across all processes, counted in Redis, and a final refusal pauses every SEC call for 10 minutes. Each US federal host gets at most one request per second.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">04</span>Moving vectors into Postgres</h2>
+    <p>The chat assistant first kept its vectors in ChromaDB, which stores data on the local disk of the container that writes it. The worker wrote vectors to its own disk while the web service read from an empty store of its own, so every non-admin question was refused for lack of context.</p>
+    <ul class="ticks">
+      <li>Vectors moved into a side table in the shared Supabase database, keyed to the signal and deleted with it, rather than a column that would travel with every load of a signal.</li>
+      <li>No approximate (HNSW) index. Every search is limited to one user's rows, and an approximate index searches the whole table and filters afterwards, so a user with few rows could get fewer results than asked for, or none. An exact scan on a per-user index is fast at this size.</li>
+      <li>The same row-level security as the signals, and a daily backfill that embeds missing rows 300 at a time.</li>
+      <li>Measured locally: 10,000 rows took 20 MB, and an exact search over one user's rows took 2.9 ms. The decision record says plainly that it had not yet been verified on production when it was written.</li>
+    </ul>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">05</span>Licences are data quality too</h2>
+    <p>I audited the terms of the 33 news and content sources the system ingested, classed each by whether commercial use is allowed, and paused the social sources by default behind switches. The audit, its data and the decisions that followed are recorded in the repository next to the code.</p>
+    <div class="stats case-stats">
+      <div class="stat"><span class="num" data-to="277">0</span><span class="lbl">merged pull requests</span></div>
+      <div class="stat"><span class="num" data-to="99">0</span><span class="lbl">Architecture Decision Records</span></div>
+      <div class="stat"><span class="num" data-to="31">0</span><span class="lbl">Alembic migrations</span></div>
+      <div class="stat"><span class="num" data-to="33">0</span><span class="lbl">news sources audited</span></div>
+    </div>
+    <p class="muted">The repository is private. Numbers are from the repository in November 2026.</p>
+  </section>
+
+  <nav class="case-next reveal">
+    <a href="../ngs-panel/"><span>←</span> NGS panel validation</a>
+    <a href="../amrscan/">AMRScan 2 <span>→</span></a>
+  </nav>
+
+</main>
+
+<footer class="foot">
+  <p>Kaitao Lai · Sydney · <a href="https://kaitaolai.github.io/">Academic site</a> · <a href="https://kaitaolai.github.io/ai/">AI engineering portfolio</a> · <a href="https://github.com/taowis">GitHub</a></p>
+</footer>
+
+<script src="../assets/js/main.js?v=5"></script>
+</body>
+</html>
