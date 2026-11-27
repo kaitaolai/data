@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMRScan 2 | Kaitao Lai</title>
+<meta name="description" content="Case study: AMRScan 2, a Nextflow batch workflow that writes a provenance record beside every result, run on 10,521 genomes and reproduced byte for byte on NCI Gadi.">
+<link rel="stylesheet" href="../assets/css/style.css?v=5">
+</head>
+<body class="case">
+
+<div class="spotlight" aria-hidden="true"></div>
+
+<header class="nav" id="nav">
+  <a class="brand" href="../"><span class="dot"></span>Kaitao Lai</a>
+  <button class="menu-btn" id="menuBtn" aria-label="Menu" aria-expanded="false"><span></span><span></span></button>
+  <nav id="menu">
+    <a class="active" href="../#work">Work</a>
+    <a href="../#experience">Experience</a>
+    <a href="../#skills">Skills</a>
+    <a href="../#research">Research</a>
+    <a href="../#contact">Contact</a>
+  </nav>
+</header>
+
+<main>
+
+  <section class="case-hero">
+    <a class="back load" style="--i:0" href="../#work"><span>←</span> All work</a>
+    <p class="eyebrow load" style="--i:1">Case study · open source</p>
+    <h1 class="load" style="--i:2">AMRScan 2</h1>
+    <p class="lede load" style="--i:3">A batch workflow that finds antimicrobial resistance genes in bacterial genomes and writes, beside every result, an exact record of what produced it: the command, the software version, and a hash of every input and database file.</p>
+    <p class="links load" style="--i:4"><a class="primary" href="https://github.com/taowis/amrscan">Code on GitHub</a><a href="https://arxiv.org/abs/2507.08062">Preprint, arXiv:2507.08062</a><a href="https://kaitaolai.github.io/projects/5_amrscan/">The research behind it</a></p>
+
+    <dl class="meta load" style="--i:5">
+      <div><dt>My role</dt><dd>Sole author: design, code, tests and documentation</dd></div>
+      <div><dt>Stack</dt><dd>Nextflow DSL2, Python, Docker and Singularity, PBS Pro on the NCI Gadi supercomputer</dd></div>
+      <div><dt>Pinned</dt><dd>NCBI AMRFinderPlus 4.2.7 in one container image; database release 2026-08-07.1</dd></div>
+      <div><dt>Tests</dt><dd>345 Python tests at 95% branch coverage and 5 nf-test cases, run in CI on every change</dd></div>
+    </dl>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">01</span>The problem</h2>
+    <p>Resistance can now be predicted from a bacterial genome, but a prediction is only as good as the record behind it. The reference database is updated regularly, tools change their output, and input files get downloaded again. Months later it is often impossible to say which version of what produced a given result.</p>
+    <p>So the record had to be part of the result: written by the workflow itself, for every sample, whether the call worked or not.</p>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">02</span>The workflow</h2>
+    <figure class="diagram">
+      <div class="diagram-scroll">
+      <svg viewBox="0 0 1000 330" role="img" aria-label="Calls path: a samplesheet with optional SHA-256 per row is checked against a schema; AMRFinderPlus runs in a pinned container and writes the untouched report and a provenance record; the harmonise step stops on any hash or format problem and writes one fixed-schema table per sample. Phenotype path: public susceptibility exports are downloaded, recorded in a snapshot manifest with URL, time and SHA-256, then built and validated by rebuilding byte for byte. The two meet on the assembly accession.">
+        <g class="grp"><text x="24" y="26" style="text-anchor:start">Resistance calls (Nextflow)</text><text x="24" y="206" style="text-anchor:start">Susceptibility data (Python)</text></g>
+        <g class="edge">
+          <path d="M150 85 L180 85"/><path d="M300 85 L330 85"/><path d="M490 85 L520 85"/><path d="M680 85 L710 85"/><path d="M850 85 L870 85"/>
+          <path d="M150 265 L180 265"/><path d="M330 265 L360 265"/><path d="M540 265 L570 265"/>
+          <path d="M920 115 L920 230 L740 230 L740 245"/>
+        </g>
+        <g class="box">
+          <rect x="20" y="60" width="130" height="50" rx="10"/><text x="85" y="79" class="b">Samplesheet</text><text x="85" y="97">optional SHA-256</text>
+        </g>
+        <g class="box agent">
+          <rect x="180" y="60" width="120" height="50" rx="10"/><text x="240" y="79" class="b">Checks</text><text x="240" y="97">schema, IDs</text>
+          <rect x="330" y="60" width="160" height="50" rx="10"/><text x="410" y="79" class="b">AMRFinderPlus</text><text x="410" y="97">pinned container</text>
+        </g>
+        <g class="box key">
+          <rect x="520" y="60" width="160" height="50" rx="10"/><text x="600" y="79" class="b">Report + record</text><text x="600" y="97">command, hashes</text>
+          <rect x="710" y="60" width="140" height="50" rx="10"/><text x="780" y="79" class="b">Harmonise</text><text x="780" y="97">stops on mismatch</text>
+        </g>
+        <g class="box">
+          <rect x="870" y="60" width="110" height="50" rx="10"/><text x="925" y="79" class="b">Table</text><text x="925" y="97">per sample</text>
+        </g>
+        <text class="note" x="500" y="145">the record is written even when the call fails</text>
+
+        <g class="box">
+          <rect x="20" y="240" width="130" height="50" rx="10"/><text x="85" y="259" class="b">Public exports</text><text x="85" y="277">NCBI Pathogen Det.</text>
+        </g>
+        <g class="box agent">
+          <rect x="180" y="240" width="150" height="50" rx="10"/><text x="255" y="259" class="b">Snapshot</text><text x="255" y="277">URL, time, SHA-256</text>
+          <rect x="360" y="240" width="180" height="50" rx="10"/><text x="450" y="259" class="b">Build and validate</text><text x="450" y="277">rebuild byte for byte</text>
+        </g>
+        <g class="box key">
+          <rect x="570" y="240" width="170" height="50" rx="10"/><text x="655" y="259" class="b">Isolate tables</text><text x="655" y="277">every row traced</text>
+        </g>
+        <text class="note" x="870" y="268">joined on the assembly ID</text>
+      </svg>
+      </div>
+      <figcaption>Drawn for this page from the workflow code and its documentation.</figcaption>
+    </figure>
+    <p>For each sample the workflow keeps AMRFinderPlus's own report untouched and writes a provenance record beside it: the caller version, the full command, the SHA-256 of the input, the SHA-256 of every database file and a digest over all of them, the thresholds, the status, and the hash of the report. A harmonise step then turns the report into a fixed 24-column table that keeps every original column.</p>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">03</span>Decisions and trade-offs</h2>
+    <div class="decisions">
+      <div class="decision reveal">
+        <h3>A record even for failures</h3>
+        <p>The provenance record is written whether the call succeeds or fails, so a failed sample leaves evidence of what was tried, not a gap.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Never fetch a database at run time</h3>
+        <p>The workflow refuses to download or update its reference database. A separate script fetches a named release and writes a checksum list and a provenance file beside it.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>All or nothing per sample</h3>
+        <p>Harmonising stops on a hash mismatch, a missing or duplicate header, or a malformed row. Rows are buffered, so a bad row cannot leave a half-written file.</p>
+      </div>
+      <div class="decision reveal">
+        <h3>Retry only what is worth retrying</h3>
+        <p>Exit codes that mean the scheduler ran out of memory or time are retried up to twice with more of both. Anything else stops the run, so a real error is never hidden by a retry.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="case-sec reveal">
+    <h2><span class="sec-num">04</span>At scale, and on a second platform</h2>
+    <p>AMRScan is the data layer for a study of whether resistance predicted from a genome holds up on lineages, countries and years that were not in training. The cohort is 10,521 public <i>E. coli</i> genomes with 162,701 susceptibility results from 26 countries, collected from 2009 to 2025. Every result can be traced to the export file, row and download it came from.</p>
+    <ul class="ticks">
+      <li>All 10,521 genomes were called through the same wrapper on a workstation: 10,521 succeeded, none failed, and no provenance check failed. The run was interrupted once. Earlier calls were checked again before they were reused, and 22 partial outputs were set aside and redone.</li>
+      <li>1,000 of them, picked at random, were then run through Nextflow on NCI Gadi under PBS Pro: 2,000 tasks, all finished on the first attempt, in 1 hour 10 minutes of wall time and about 27 service units. Every input hash matched, and every raw report was byte-identical to the earlier run on the other machine.</li>
+      <li>The fingerprint caught something a release name would not. Between the two downloads NCBI had added five files to the same database release, so the database digests differ and the harmonised tables, which carry that digest, are not identical. The raw results are.</li>
+    </ul>
+    <div class="stats case-stats">
+      <div class="stat"><span class="num" data-to="10521">0</span><span class="lbl">genomes called, none failed</span></div>
+      <div class="stat"><span class="num" data-to="1000">0</span><span class="lbl">reports byte-identical on Gadi</span></div>
+      <div class="stat"><span class="num" data-to="2000">0</span><span class="lbl">Gadi tasks, no retries</span></div>
+      <div class="stat"><span class="num" data-to="26">0</span><span class="lbl">countries in the cohort</span></div>
+    </div>
+  </section>
+
+  <nav class="case-next reveal">
+    <a href="../stockclaw/"><span>←</span> StockClaw data platform</a>
+    <a href="../ngs-panel/">NGS panel validation <span>→</span></a>
+  </nav>
+
+</main>
+
+<footer class="foot">
+  <p>Kaitao Lai · Sydney · <a href="https://kaitaolai.github.io/">Academic site</a> · <a href="https://kaitaolai.github.io/ai/">AI engineering portfolio</a> · <a href="https://github.com/taowis">GitHub</a></p>
+</footer>
+
+<script src="../assets/js/main.js?v=5"></script>
+</body>
+</html>
