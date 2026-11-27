@@ -102,7 +102,8 @@
   }
   readColours();
   const sources = ['APIs', 'Files', 'Feeds', 'Events'];
-  let W, H, N, rows = [], loaded = 0, held = 0, glow = { ingest: 0, gate: 0, wh: 0, serve: 0 };
+  const outputs = ['dashboards', 'ML features', 'LLM retrieval'];
+  let W, H, N, rows = [], loaded = 0, held = 0, glow = { ingest: 0, gate: 0, wh: 0, out: [0, 0, 0] };
 
   function layout() {
     const dpr = window.devicePixelRatio || 1;
@@ -112,11 +113,11 @@
     const mid = H * 0.44;
     N = {
       src: sources.map((s, i) => ({ x: Math.max(W * 0.16, 64), y: H * (0.14 + i * 0.2) })),
-      ingest: { x: W * 0.36, y: mid },
-      gate: { x: W * 0.56, y: mid },
-      wh: { x: W * 0.76, y: mid },
-      serve: { x: W * 0.93, y: mid },
-      quarantine: { x: W * 0.56, y: H * 0.86 }
+      ingest: { x: W * 0.31, y: mid },
+      gate: { x: W * 0.46, y: mid },
+      wh: { x: W * 0.61, y: mid },
+      out: outputs.map((o, i) => ({ x: Math.min(W * 0.9, W - 52), y: mid + (i - 1) * H * 0.3 })),
+      quarantine: { x: W * 0.46, y: H * 0.86 }
     };
   }
 
@@ -124,18 +125,18 @@
     const s = N.src[r.src];
     return r.bad
       ? [s, N.ingest, N.gate, N.quarantine]
-      : [s, N.ingest, N.gate, N.wh, N.serve];
+      : [s, N.ingest, N.gate, N.wh, N.out[r.out]];
   }
 
   function spawn() {
-    if (Math.random() < 0.07) rows.push({ src: Math.floor(Math.random() * sources.length), seg: 0, p: 0, v: 0.011 + Math.random() * 0.006, bad: Math.random() < 0.12 });
+    if (Math.random() < 0.07) rows.push({ src: Math.floor(Math.random() * sources.length), seg: 0, p: 0, v: 0.011 + Math.random() * 0.006, bad: Math.random() < 0.12, out: Math.floor(Math.random() * outputs.length) });
   }
 
   function draw() {
     ctx.clearRect(0, 0, W, H);
     ctx.lineWidth = 1.4; ctx.strokeStyle = C.line;
     N.src.forEach(s => line(s, N.ingest));
-    line(N.ingest, N.gate); line(N.gate, N.wh); line(N.wh, N.serve);
+    line(N.ingest, N.gate); line(N.gate, N.wh); N.out.forEach(o => line(N.wh, o));
     ctx.setLineDash([3, 5]); ctx.strokeStyle = C.warn; ctx.globalAlpha = 0.5; line(N.gate, N.quarantine); ctx.setLineDash([]); ctx.globalAlpha = 1;
 
     if (!reduce) spawn();
@@ -148,7 +149,7 @@
         if (at === N.ingest) glow.ingest = 1;
         if (at === N.gate) glow.gate = 1;
         if (at === N.wh) { glow.wh = 1; loaded++; }
-        if (r.seg >= P.length - 1) { if (r.bad) held++; else glow.serve = 1; return false; }
+        if (r.seg >= P.length - 1) { if (r.bad) held++; else glow.out[r.out] = 1; return false; }
       }
       const a = P[r.seg], b = P[r.seg + 1];
       const x = a.x + (b.x - a.x) * r.p, y = a.y + (b.y - a.y) * r.p;
@@ -157,7 +158,7 @@
       ctx.fillRect(x - 3, y - 3, 6, 6);
       return true;
     });
-    for (const k in glow) glow[k] *= 0.93;
+    glow.ingest *= 0.93; glow.gate *= 0.93; glow.wh *= 0.93; glow.out = glow.out.map(g => g * 0.93);
 
     ctx.font = '12px ui-monospace, Menlo, monospace'; ctx.textBaseline = 'middle';
     N.src.forEach((s, i) => {
@@ -167,13 +168,15 @@
     box(N.ingest.x, N.ingest.y, 22, 22, glow.ingest, false);
     label('ingest', N.ingest, 32);
     gate(N.gate.x, N.gate.y, glow.gate);
-    label('validate', N.gate, 32);
+    label('validate', N.gate, -32);
     cylinder(N.wh.x, N.wh.y, glow.wh);
     label('warehouse', N.wh, 36);
-    box(N.serve.x, N.serve.y, 18, 18, glow.serve, true);
-    ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText('serve', N.serve.x, N.serve.y + 30);
+    N.out.forEach((o, i) => {
+      box(o.x, o.y, 16, 16, glow.out[i], true);
+      ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.fillText(outputs[i], o.x, o.y + 24);
+    });
     ctx.fillStyle = C.warn; ctx.fillText('held for review: ' + held, N.quarantine.x, N.quarantine.y + 18);
-    ctx.fillStyle = C.accent; ctx.fillText('rows loaded: ' + loaded, N.wh.x, N.wh.y - 40);
+    ctx.fillStyle = C.accent; ctx.fillText('rows loaded: ' + loaded, N.wh.x, N.wh.y + 56);
 
     if (!reduce) requestAnimationFrame(draw);
   }
