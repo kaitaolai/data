@@ -1,6 +1,31 @@
 (function () {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+  // colour theme: system -> light -> dark, stored under the same key as the academic site
+  const root = document.documentElement;
+  const dark = window.matchMedia('(prefers-color-scheme: dark)');
+  const themeBtn = document.getElementById('themeBtn');
+  function applyTheme(animate) {
+    let p = 'system';
+    try { p = localStorage.getItem('theme') || 'system'; } catch (e) {}
+    if (p !== 'light' && p !== 'dark') p = 'system';
+    const t = p === 'dark' || (p === 'system' && dark.matches) ? 'dark' : 'light';
+    if (animate && !reduce) { root.classList.add('theme-anim'); setTimeout(() => root.classList.remove('theme-anim'), 400); }
+    root.setAttribute('data-pref', p);
+    root.setAttribute('data-theme', t);
+    if (themeBtn) { const l = 'Colour theme: ' + p; themeBtn.setAttribute('aria-label', l); themeBtn.title = l; }
+    document.dispatchEvent(new Event('themechange'));
+  }
+  if (themeBtn) themeBtn.addEventListener('click', () => {
+    const cur = root.getAttribute('data-pref') || 'system';
+    const next = cur === 'system' ? 'light' : cur === 'light' ? 'dark' : 'system';
+    try { localStorage.setItem('theme', next); } catch (e) {}
+    applyTheme(true);
+  });
+  dark.addEventListener('change', () => applyTheme(true));
+  window.addEventListener('storage', e => { if (e.key === 'theme') applyTheme(true); });
+  applyTheme(false);
+
   // glow follows the mouse
   const spot = document.querySelector('.spotlight');
   window.addEventListener('pointermove', e => {
@@ -101,6 +126,7 @@
     C.rgb = [0, 2, 4].map(i => parseInt(h.substr(i, 2), 16)).join(',');
   }
   readColours();
+  document.addEventListener('themechange', readColours);
   const sources = ['APIs', 'Files', 'Feeds', 'Events'];
   const outputs = ['dashboards', 'ML features', 'LLM retrieval'];
   let W, H, N, rows = [], loaded = 0, held = 0, glow = { ingest: 0, gate: 0, wh: 0, out: [0, 0, 0] };
